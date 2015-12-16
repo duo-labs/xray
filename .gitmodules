@@ -1,0 +1,3 @@
+[submodule "thirdparty/android-vts"]
+	path = thirdparty/android-vts
+	url = https://github.com/nowsecure/android-vts.git
