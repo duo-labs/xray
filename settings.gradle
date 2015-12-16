@@ -1,2 +1,1 @@
 include ':app'
-project(':android-vts').projectDir = new File('thirdparty/android-vts/')
