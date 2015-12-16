@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="wrap_content"
+    android:layout_height="fill_parent" android:background="#000000">
+
+    <android.support.v7.widget.Toolbar
+        android:id="@+id/toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="?attr/actionBarSize"
+        android:theme="@style/ThemeOverlay.AppCompat.Dark"/>
+
+
+    <LinearLayout
+        xmlns:android="http://schemas.android.com/apk/res/android"
+        android:orientation="vertical"
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:layout_centerInParent="true">
+
+        <ImageView
+            android:id="@+id/quickstart_img_logo"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:src="@drawable/logo" />
+
+        <TextView
+            android:id="@+id/quickstart_txt_description"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="10dp"
+            android:layout_marginLeft="30dp"
+            android:layout_marginRight="30dp"
+            android:layout_marginTop="10dp"
+            android:text="X-Ray scans for security vulnerabilities that put your Android device at risk."
+            android:textColor="#ffffff"
+            android:gravity="center_horizontal" android:textSize="18dp"/>
+
+        <TextView
+            android:id="@+id/quickstart_txt_label"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="10dp"
+            android:layout_marginLeft="30dp"
+            android:layout_marginRight="30dp"
+            android:layout_marginTop="10dp"
+            android:text="Click below to start X-Ray!"
+            android:textColor="#ffffff"
+            android:gravity="center_horizontal" android:textSize="18dp"/>
+
+        <ImageView
+            android:id="@+id/about_img_duo"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:src="@drawable/duo" />
+        <TextView
+            android:id="@+id/about_txt_madebyduo"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="10dp"
+            android:layout_marginLeft="30dp"
+            android:layout_marginRight="30dp"
+            android:layout_marginTop="5dp"
+            android:gravity="center_horizontal"
+            android:text="Made by Duo Security"
+            android:textColor="#ffffff"
+            android:textSize="14dp" />
+
+        <TextView
+            android:id="@+id/about_txt_version"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="10dp"
+            android:layout_marginLeft="30dp"
+            android:layout_marginRight="30dp"
+            android:layout_marginTop="10dp"
+            android:gravity="center_horizontal"
+            android:text="Version 2.0"
+            android:textColor="#ffffff"
+            android:textSize="12dp" />
+
+    </LinearLayout>
+
+    <android.support.v7.widget.RecyclerView
+        android:id="@+id/recyclerView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"/>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="horizontal">
+        <Button
+            android:id="@+id/fabStart"
+            android:layout_height="100dp"
+            android:layout_width="100dp"
+            android:layout_gravity="center|bottom"
+            android:layout_weight="1"
+            android:text="X-Ray My Device"
+            android:textColor="@android:color/white"
+            android:textStyle="bold"
+            android:textSize="20dp"
+            android:background="@color/accent"/>
+
+    </LinearLayout>
+
+</RelativeLayout>
