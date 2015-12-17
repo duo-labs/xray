@@ -69,12 +69,6 @@ public class MainActivity extends ActionBarActivity {
 
     devInfo = DeviceInfo.getDeviceInfo();
 
-    StringBuilder sb = new StringBuilder();
-    for (String s : devInfo.getSupportedABIS()) {
-      sb.append(s);
-      sb.append(" ");
-    }
-
     Button fabStart = (Button) findViewById(R.id.fabStart);
 
     fabStart.setOnClickListener(new View.OnClickListener(){
@@ -98,48 +92,16 @@ public class MainActivity extends ActionBarActivity {
         testResults.addAll(results);
 
         recyclerAdapter.updateResults(results);
-
-        showScanResume(results);
       }
     }).execute();
   }
 
-  private void showScanResume(final List<VulnerabilityTestResult> results) {
-    int numberOfFailed = 0;
-
-    for (VulnerabilityTestResult result : results) {
-      if (result.getException() != null) {
-        continue;
-      }
-
-      if (result.isVulnerable()) {
-        numberOfFailed++;
-      }
-    }
-
-    MaterialDialog.Builder dialogBuilder = new MaterialDialog.Builder(this)
-            .title(R.string.scan_details)
-            .customView(R.layout.dialog_scan_details_layout, true)
-            .positiveText(R.string.dismiss);
-
-    if (numberOfFailed > 0) {
-      dialogBuilder.negativeText(R.string.my_device_is_vulnerable_info)
-              .onNegative(new MaterialDialog.SingleButtonCallback() {
-                @Override
-                public void onClick(MaterialDialog materialDialog, DialogAction dialogAction) {
-                  Intent browserIntent = new Intent(Intent.ACTION_VIEW, Uri.parse("https://www.nowsecure.com/blog/2015/11/18/my-device-is-vulnerable-now-what/"));
-                  startActivity(browserIntent);
-                }
-              });
-    }
-  }
 
   private class HttpAsyncTask extends AsyncTask<String, Void, String> {
     @Override
     protected String doInBackground(String... urls) {
       return POST(urls[0]);
     }
-
   }
 
   public String POST(String url){
@@ -201,27 +163,5 @@ public class MainActivity extends ActionBarActivity {
     inputStream.close();
     return result;
 
-  }
-
-  @Override
-  public boolean onCreateOptionsMenu(Menu menu) {
-    // Inflate the menu; this adds items to the action bar if it is present.
-    getMenuInflater().inflate(R.menu.menu_main, menu);
-    return true;
-  }
-
-  @Override
-  public boolean onOptionsItemSelected(MenuItem item) {
-    // Handle action bar item clicks here. The action bar will
-    // automatically handle clicks on the Home/Up button, so long
-    // as you specify a parent activity in AndroidManifest.xml.
-    int id = item.getItemId();
-
-    //noinspection SimplifiableIfStatement
-    if (id == R.id.action_settings) {
-      return true;
-    }
-
-    return super.onOptionsItemSelected(item);
   }
 }
