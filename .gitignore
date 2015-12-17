@@ -32,3 +32,4 @@ proguard/
 captures/
 
 .idea/
+.DS_Store

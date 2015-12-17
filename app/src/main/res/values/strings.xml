@@ -1,4 +1,16 @@
 <resources>
     <string name="app_name">X-Ray</string>
     <string name="action_settings">Settings</string>
+    <string name="scan_details">Scan details</string>
+    <string name="dismiss">Dismiss</string>
+    <string name="my_device_is_vulnerable_info">Now What?</string>
+    <string name="scan_details_secure_message">Your device is secure</string>
+    <string name="scan_details_number_tests">Number of tests:</string>
+    <string name="scan_details_number_failed_tests">Number of failed tests:</string>
+    <string name="error_test">Vulnerable</string>
+    <string name="test_result_success">Not Vulnerable</string>
+    <string name="test_result_failure">Vulnerable</string>
+    <string name="show_details"><u>Details</u></string>
+    <string name="information_not_available">Information not available yet.</string>
+
 </resources>
