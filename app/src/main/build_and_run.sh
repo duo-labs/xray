@@ -1,0 +1,1 @@
+../../../thirdparty/android-vts/app/src/main/build_and_run.sh

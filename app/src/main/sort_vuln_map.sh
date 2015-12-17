@@ -1,0 +1,1 @@
+../../../thirdparty/android-vts/app/src/main/sort_vuln_map.sh
