@@ -44,29 +44,6 @@ We definitely understand that users prefer to install apps from the Play Store, 
 
 Yes, the underlying technology that powers X-Ray can be deployed on an enterprise-wide level, giving you global visibility into vulnerabilities affecting your employees' mobile devices. Please contact [xray@duosecurity.com](mailto:xray@duosecurity.com) for more information.
 
-## Which vulnerabilities does X-Ray test?
-
-* CVE-2011-1149
-* CVE-2013-4787
-* CVE-2013-6282
-* CVE-2014-3153
-* CVE-2014-4943
-* CVE-2015-1528
-* CVE-2015-1538
-* CVE-2015-1539
-* CVE-2015-3824
-* CVE-2015-3828
-* CVE-2015-3829
-* CVE-2015-3864
-* CVE-2015-6602
-* CVE-2015-3636
-* CVE-2015-6608
-* CVE-2015-3825
-* CVE-2015-7888
-* CVE-2015-1474
-
-For more details, see [our site](https://labs.duosecurity.com/xray).
-
 ## What's the relation of this project to NowSecure VTS?
 
 We originally wrote X-Ray a few years ago and did not continuously update it with new vulnerabilities.
@@ -78,3 +55,5 @@ We decided to collaborate on their testing harness by porting our old tests to r
 the X-Ray UI, which is targeted more towards average users, as opposed to VTS which targets a technical audience.
 
 We aim to continue adding new vulnerabilities to X-Ray, along with pull requests to VTS so they can include them in their product.
+
+For more details, see [our site](https://labs.duosecurity.com/xray).
