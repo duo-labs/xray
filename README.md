@@ -58,6 +58,6 @@ in a general way.
 We decided to collaborate on their testing harness by porting our old tests to run on it, while maintaining and updating
 the X-Ray UI, which is targeted more towards average users, as opposed to VTS which targets a technical audience.
 
-We aim to continue adding new vulnerabilities to X-Ray, along with pull requests to VTS so they can include them in their product.
+We aim to continue adding new vulnerabilities to X-Ray, along with pull requests to VTS so they can include them in their tool.
 
 For more details, see [our site](https://labs.duosecurity.com/xray).
