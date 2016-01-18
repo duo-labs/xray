@@ -1,6 +1,10 @@
 # X-Ray
 X-Ray allows you to scan your Android device for security vulnerabilities that put your device at risk.
 
+<p align="center">
+<img src="http://labs.duosecurity.com/xray/static/images/xray.png" alt="X-Ray Screenshot">
+</p>
+
 X-Ray was developed by security researchers at [Duo Security](http://www.duosecurity.com?cid=70170000000sNXI).
 
 We hope that X-Ray will empower users with knowledge of vulnerabilities on their devices and allow them to take action to improve their security.
