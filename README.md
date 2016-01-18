@@ -65,12 +65,12 @@ Yes, the underlying technology that powers X-Ray can be deployed on an enterpris
 * CVE-2015-7888
 * CVE-2015-1474
 
-For more details, see (our site)[https://labs.duosecurity.com/xray].
+For more details, see [our site](https://labs.duosecurity.com/xray).
 
 ## What's the relation of this project to NowSecure VTS?
 
 We originally wrote X-Ray a few years ago and did not continuously update it with new vulnerabilities.
-In late 2015, NowSecure released (Android VTS)[https://github.com/nowsecure/android-vts] as an open source project,
+In late 2015, NowSecure released [Android VTS](https://github.com/nowsecure/android-vts) as an open source project,
 which included several vulnerabilities X-Ray didn't test for, as well as a nicer test harness for implementing tests
 in a general way.
 
