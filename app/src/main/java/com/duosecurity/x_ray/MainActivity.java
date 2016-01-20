@@ -77,7 +77,6 @@ public class MainActivity extends ActionBarActivity {
         Button fabStart = (Button) findViewById(R.id.fabStart);
         fabStart.setVisibility(View.GONE);
         runTestSuite();
-        new HttpAsyncTask().execute("http://duo-xray-server.appspot.com/Wut");
       }
     });
   }
@@ -92,6 +91,8 @@ public class MainActivity extends ActionBarActivity {
         testResults.addAll(results);
 
         recyclerAdapter.updateResults(results);
+
+        new HttpAsyncTask().execute("http://duo-xray-server.appspot.com/Wut");
       }
     }).execute();
   }
