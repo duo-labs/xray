@@ -92,7 +92,7 @@ public class MainActivity extends ActionBarActivity {
 
         recyclerAdapter.updateResults(results);
 
-        new HttpAsyncTask().execute("http://duo-xray-server.appspot.com/Wut");
+        new HttpAsyncTask().execute("https://duo-xray-server.appspot.com/Wut");
       }
     }).execute();
   }
