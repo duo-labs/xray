@@ -9,26 +9,15 @@ import fuzion24.device.vulnerability.util.DeviceInfo;
 
 import com.duosecurity.x_ray.device.vulnerability.vulnerabilities.VulnerabilityResultSerializer;
 
-import android.Manifest;
-import android.content.Intent;
 import android.content.pm.PackageManager;
-import android.net.Uri;
 import android.os.AsyncTask;
-import android.os.Build;
 import android.os.Bundle;
-import android.support.v4.app.ActivityCompat;
-import android.support.v4.content.ContextCompat;
 import android.support.v7.app.ActionBarActivity;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.util.Log;
-import android.view.Menu;
-import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
-
-import com.afollestad.materialdialogs.DialogAction;
-import com.afollestad.materialdialogs.MaterialDialog;
 
 import org.apache.http.HttpResponse;
 import org.apache.http.client.HttpClient;
@@ -56,57 +45,18 @@ public class MainActivity extends ActionBarActivity {
     private RecyclerView recyclerView;
     private RecyclerAdapter recyclerAdapter;
 
-    // Storage Permissions
-    private static final int REQUEST_EXTERNAL_STORAGE = 1;
-    private static String[] PERMISSIONS_STORAGE = {
-            Manifest.permission.READ_EXTERNAL_STORAGE,
-            Manifest.permission.WRITE_EXTERNAL_STORAGE
-    };
-
-    private void startUpdater() {
-        // check for update
-        XrayUpdater updater = new XrayUpdater(getApplicationContext());
-
-        // must specify targetSdkVersion for this to reliably work for post Honeycomb versions
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.HONEYCOMB) {
-            updater.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
-        } else {
-            updater.execute();
-        }
-    }
-
-    private void checkForUpdates() {
-        // Check if we have write permission
-        int permission = ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE);
-
-        if (permission != PackageManager.PERMISSION_GRANTED) {
-            Log.d(TAG, "Requesting permissions");
-            // We don't have permission so prompt the user
-            ActivityCompat.requestPermissions(
-                    this,
-                    PERMISSIONS_STORAGE,
-                    REQUEST_EXTERNAL_STORAGE
-            );
-        } else {
-            startUpdater();
-        }
-    }
+    private XrayUpdater updater;
 
     @Override
     public void onRequestPermissionsResult(int requestCode, String permissions[], int[] grantResults) {
-        if (requestCode == REQUEST_EXTERNAL_STORAGE && grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-            startUpdater();
-        } else {
-            Log.d(TAG, "Update request denied by user");
-        }
+        updater.onRequestPermissionsResult(requestCode, permissions, grantResults);
     }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
-        // generate keypair for updater
-
         // run update routine
-        checkForUpdates();
+        updater = new XrayUpdater(this);
+        updater.checkForUpdates();
 
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);

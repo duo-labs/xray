@@ -117,6 +117,8 @@
     <orderEntry type="library" exported="" name="support-annotations-23.4.0" level="project" />
     <orderEntry type="library" exported="" name="commons-io-2.4" level="project" />
     <orderEntry type="library" exported="" name="core-0.8.5.9" level="project" />
+    <orderEntry type="library" exported="" name="scprov-jdk15on-1.47.0.3" level="project" />
+    <orderEntry type="library" exported="" name="sc-light-jdk15on-1.47.0.3" level="project" />
     <orderEntry type="library" exported="" name="cardview-v7-23.1.0" level="project" />
     <orderEntry type="library" exported="" name="design-23.1.0" level="project" />
     <orderEntry type="library" exported="" name="animated-vector-drawable-23.4.0" level="project" />
