@@ -2,11 +2,15 @@ package com.duosecurity.x_ray;
 
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Environment;
 import android.util.JsonReader;
 import android.util.Log;
+
+import com.duosecurity.duokit.crypto.Crypto;
+import com.duosecurity.x_ray.preferences.StringPreference;
 
 import org.json.JSONException;
 
@@ -20,6 +24,8 @@ import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.SocketTimeoutException;
 import java.net.URL;
+import java.security.PrivateKey;
+import java.security.PublicKey;
 import java.util.Scanner;
 import java.util.jar.JarFile;
 
@@ -37,9 +43,14 @@ public class XrayUpdateTask extends AsyncTask<Void, Void, Void> {
     private final static String FILE_TYPE = "application/vnd.android.package-archive";
 
     protected Context context = null;
+    private Crypto crypto = null;
 
-    public XrayUpdateTask(Context ctx) {
+    private SharedPreferences sharedPreferences = null;
+
+    public XrayUpdateTask(Context ctx, SharedPreferences preferences) {
         context = ctx;
+        crypto = Crypto.getInstance();
+        sharedPreferences = preferences;
     }
 
     protected void promptInstall (String filePath) {
@@ -55,6 +66,14 @@ public class XrayUpdateTask extends AsyncTask<Void, Void, Void> {
         Log.d(TAG, "Checking for new updates...");
 
         try {
+            StringPreference mobilePubKeyPref = PreferenceProvider.provide_mobile_pubkey(sharedPreferences);
+            StringPreference mobilePrivKeyPref = PreferenceProvider.provide_mobile_privkey(sharedPreferences);
+            StringPreference sharedSecretPref = PreferenceProvider.provide_shared_secret(sharedPreferences);
+
+            Log.d(TAG, crypto.readPublicKey(mobilePubKeyPref.get()).toString());
+            Log.d(TAG, crypto.readPrivateKey(mobilePrivKeyPref.get()).toString());
+            Log.d(TAG, sharedSecretPref.get());
+
             // issue a GET request to determine the latest available apk version
             URL url = new URL(VERSION_URL);
             urlConnection = (HttpURLConnection) url.openConnection();
@@ -62,6 +81,7 @@ public class XrayUpdateTask extends AsyncTask<Void, Void, Void> {
             urlConnection.setReadTimeout(READ_TIMEOUT);
             urlConnection.setRequestMethod("GET");
             urlConnection.setDoInput(true);
+            urlConnection.setRequestProperty("Mobile-Pub-Key", mobilePubKeyPref.get());
             urlConnection.connect();
 
             // read the results into a string

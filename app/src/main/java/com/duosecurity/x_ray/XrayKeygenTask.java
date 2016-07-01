@@ -11,9 +11,11 @@ import com.duosecurity.duokit.crypto.ECParams;
 import com.duosecurity.x_ray.preferences.StringPreference;
 
 import java.security.KeyPair;
+import java.security.PrivateKey;
+import java.security.PublicKey;
 
 public class XrayKeygenTask extends AsyncTask<Void, Void, Boolean> {
-    private final static String SHARED_PREFERENCES_NAME = "Xray";
+
     private static final String TAG = "XrayKeygenTask";
     private static final String CURVE_NAME = "secp256r1";
 
@@ -21,38 +23,47 @@ public class XrayKeygenTask extends AsyncTask<Void, Void, Boolean> {
     private Crypto crypto;
 
     private SharedPreferences sharedPreferences = null;
-    private StringPreference mobilePubKey = null;
-    private StringPreference mobilePrivKey = null;
-
     private TaskListener taskListener;
+
+    private final static String SERVER_PUB_KEY =
+        "MIIBMzCB7AYHKoZIzj0CATCB4AIBATAsBgcqhkjOPQEBAiEA/////wAAAAEAAAAAAAAAAAAAAAD/////////////" +
+        "//8wRAQg/////wAAAAEAAAAAAAAAAAAAAAD///////////////wEIFrGNdiqOpPns+u9VXaYhrxlHQawzFOw9jvO" +
+        "PD4n0mBLBEEEaxfR8uEsQkf4vOblY6RA8ncDfYEt6zOg9KE5RdiYwpZP40Li/hp/m47n60p8D54WK84zV2sxXs7L" +
+        "tkBoN79R9QIhAP////8AAAAA//////////+85vqtpxeehPO5ysL8YyVRAgEBA0IABE2Qsg162yB51BbjRHv/PZm+" +
+        "AaUU2q//+Nof1cF99aBTbiEVUFihSoPDlH1xTRDFBKaZCEshxRDm4ioP8aTnYAc=";
 
     public interface TaskListener {
         void onFinished(Boolean result);
     }
 
-    public XrayKeygenTask(Activity activity, TaskListener callback) {
+    public XrayKeygenTask(SharedPreferences preferences, TaskListener callback) {
         taskListener = callback;
-        sharedPreferences = activity.getSharedPreferences(SHARED_PREFERENCES_NAME, activity.MODE_PRIVATE);
-        mobilePubKey = PreferenceProvider.provide_mobile_pubkey(sharedPreferences);
-        mobilePrivKey = PreferenceProvider.provide_mobile_privkey(sharedPreferences);
+        sharedPreferences = preferences;
         crypto = Crypto.getInstance();
     }
 
     @Override
     protected Boolean doInBackground(Void... arg0) {
         try {
-            if (mobilePubKey.isSet() && mobilePrivKey.isSet()) {
+            StringPreference mobilePubKeyPref = PreferenceProvider.provide_mobile_pubkey(sharedPreferences);
+            StringPreference mobilePrivKeyPref = PreferenceProvider.provide_mobile_privkey(sharedPreferences);
+            StringPreference sharedSecretPref = PreferenceProvider.provide_shared_secret(sharedPreferences);
+
+            if (mobilePubKeyPref.isSet() && mobilePrivKeyPref.isSet() && sharedSecretPref.isSet()) {
                 return true;
             }
 
             ecp = ECParams.getParams(CURVE_NAME);
             KeyPair kpA = crypto.generateKeyPairParams(ecp);
 
-            Log.d(TAG, "public: " + crypto.base64Encode(kpA.getPublic().getEncoded()));
-            Log.d(TAG, "private: " + crypto.base64Encode(kpA.getPrivate().getEncoded()));
+            mobilePrivKeyPref.set(Crypto.base64Encode(kpA.getPrivate().getEncoded()));
+            mobilePubKeyPref.set(Crypto.base64Encode(kpA.getPublic().getEncoded()));
 
-            mobilePrivKey.set(Crypto.base64Encode(kpA.getPrivate().getEncoded()));
-            mobilePubKey.set(Crypto.base64Encode(kpA.getPublic().getEncoded()));
+            PublicKey extPubKey = crypto.readPublicKey(SERVER_PUB_KEY);
+            PrivateKey mobilePrivKey = crypto.readPrivateKey(mobilePrivKeyPref.get());
+
+            byte[] secret = crypto.ecdh(mobilePrivKey, extPubKey);
+            sharedSecretPref.set(Crypto.base64Encode(secret));
 
             return true;
         } catch (Exception e) {

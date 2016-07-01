@@ -9,13 +9,13 @@ import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.util.Log;
 
-import com.duosecurity.x_ray.preferences.StringPreference;
-
 public class XrayUpdater {
     private Activity activity = null;
     private Context context = null;
 
     private final static String TAG = "XrayUpdater";
+
+    private final static String SHARED_PREFERENCES_NAME = "Xray";
 
     private static final int REQUEST_EXTERNAL_STORAGE = 1;
     private static String[] PERMISSIONS_STORAGE = {
@@ -23,20 +23,25 @@ public class XrayUpdater {
             Manifest.permission.WRITE_EXTERNAL_STORAGE
     };
 
+    private SharedPreferences sharedPreferences = null;
+
     public XrayUpdater(Activity act) {
         activity = act;
         context = activity.getApplicationContext();
-
-        generateKeyPair();
+        sharedPreferences = activity.getSharedPreferences(SHARED_PREFERENCES_NAME, activity.MODE_PRIVATE);
     }
 
-    private void generateKeyPair() {
-        // generate keypair for purposes of verifying authenticity of received manifest/apk file
-        XrayKeygenTask keygenTask = new XrayKeygenTask(activity, new XrayKeygenTask.TaskListener() {
+    public void startUpdater() {
+        // first generate a keypair for verifying authenticity of received manifest/apk file
+        XrayKeygenTask keygenTask = new XrayKeygenTask(sharedPreferences, new XrayKeygenTask.TaskListener() {
             @Override
             public void onFinished(Boolean result) {
                 if (result) {
-                    checkForUpdates();
+                    // if keygen succeeded and we have necessary permissions, start update immediately
+                    // otherwise, we'll start the update in the onRequestPermissionsResult callback
+                    if (requestPermissions()) {
+                        startUpdateTask();
+                    }
                 } else {
                     Log.d(TAG, "Exiting updater");
                 }
@@ -45,30 +50,31 @@ public class XrayUpdater {
         keygenTask.execute();
     }
 
-    public void startUpdater() {
-        XrayUpdateTask updateTask = new XrayUpdateTask(activity);
+    private void startUpdateTask() {
+        XrayUpdateTask updateTask = new XrayUpdateTask(context, sharedPreferences);
         updateTask.execute();
     }
 
-    public void checkForUpdates() {
+    private boolean requestPermissions() {
         // TODO check for new version before requesting permissions
         int permission = ContextCompat.checkSelfPermission(context, Manifest.permission.WRITE_EXTERNAL_STORAGE);
 
         if (permission != PackageManager.PERMISSION_GRANTED) {
             Log.d(TAG, "Requesting permissions");
             ActivityCompat.requestPermissions(
-                activity,
-                PERMISSIONS_STORAGE,
-                REQUEST_EXTERNAL_STORAGE
+                    activity,
+                    PERMISSIONS_STORAGE,
+                    REQUEST_EXTERNAL_STORAGE
             );
-        } else {
-            startUpdater();
+            return false; // requesting permissions asynchronously. we'll get the result in onRequestPermissionsResult
         }
+        return true; // already have permissions
     }
 
     public void onRequestPermissionsResult(int requestCode, String permissions[], int[] grantResults) {
         if (requestCode == REQUEST_EXTERNAL_STORAGE && grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-            startUpdater();
+            // user gave us permission to write to external storage, so kick off update task
+            startUpdateTask();
         } else {
             Log.d(TAG, "Update request denied by user");
         }
