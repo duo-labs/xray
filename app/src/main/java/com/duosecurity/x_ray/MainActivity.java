@@ -49,13 +49,15 @@ public class MainActivity extends ActionBarActivity {
 
     @Override
     public void onRequestPermissionsResult(int requestCode, String permissions[], int[] grantResults) {
-        updater.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == XrayUpdater.REQUEST_EXTERNAL_STORAGE) {
+            updater.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        }
     }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         // run update routine
-        updater = new XrayUpdater(this);
+        updater = new XrayUpdater(MainActivity.this);
         updater.startUpdater();
 
         super.onCreate(savedInstanceState);
