@@ -58,7 +58,7 @@ public class MainActivity extends ActionBarActivity {
     protected void onCreate(Bundle savedInstanceState) {
         // run update routine
         updater = new XrayUpdater(MainActivity.this);
-        updater.startUpdater();
+        updater.checkForUpdates();
 
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
