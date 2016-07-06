@@ -6,6 +6,7 @@ import android.content.SharedPreferences;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Environment;
+import android.util.Base64;
 import android.util.JsonReader;
 import android.util.Log;
 
@@ -15,23 +16,35 @@ import com.duosecurity.x_ray.preferences.StringPreference;
 import org.json.JSONException;
 
 import java.io.BufferedInputStream;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.SocketTimeoutException;
 import java.net.URL;
+import java.security.DigestInputStream;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
+import java.security.Signature;
 import java.util.Scanner;
 import java.util.jar.JarFile;
 
 public class XrayUpdateTask extends AsyncTask<Void, Void, Void> {
 
     private final static String TAG = "XrayUpdateTask";
+
+    private final static String ECDSA_ALGORITHM = "SHA256withECDSA";
+    private final static String ECDSA_PROVIDER = "SC"; // spongycastle
 
     private final static int CONNECTION_TIMEOUT = 15000;
     private final static int READ_TIMEOUT = 15000;
@@ -42,15 +55,68 @@ public class XrayUpdateTask extends AsyncTask<Void, Void, Void> {
     private final static String DOWNLOAD_DIR = "/Download/";
     private final static String FILE_TYPE = "application/vnd.android.package-archive";
 
+    private final static String SERVER_PUB_KEY =
+        "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEy5bOzkZ36VV+kjSYso0HTCZwHWMT\n" +
+        "29lQWpJYAiudtZ65mdcBCgmsB/jAwLIJl8BricbLhGU9FA/Wxha5b3ee7A==";
+
     protected Context context = null;
     private Crypto crypto = null;
 
-    private SharedPreferences sharedPreferences = null;
-
-    public XrayUpdateTask(Context ctx, SharedPreferences preferences) {
+    public XrayUpdateTask(Context ctx) {
         context = ctx;
         crypto = Crypto.getInstance();
-        sharedPreferences = preferences;
+    }
+
+    private boolean writeToOutputStream (InputStream inputStream, OutputStream outputStream) {
+        byte[] buffer = new byte[4096];
+        int nRead;
+
+        try {
+            while ((nRead = inputStream.read(buffer, 0, buffer.length)) > 0) {
+                outputStream.write(buffer, 0, nRead);
+            }
+            outputStream.flush();
+        } catch (IOException e) {
+            return false;
+        }
+        return true;
+    }
+
+    private String getHexString (byte[] b) throws Exception {
+        String result = "";
+        for (int i = 0; i < b.length; i++) {
+            result += Integer.toString((b[i] & 0xff) + 0x100, 16).substring(1);
+        }
+        return result;
+    }
+
+    private String getFileChecksum (String fullPath) {
+        String result = null;
+
+        try {
+            MessageDigest md = MessageDigest.getInstance("MD5");
+            InputStream inputStream = new FileInputStream(fullPath);
+
+            byte[] buffer = new byte[4096];
+            int nRead;
+
+            while ((nRead = inputStream.read(buffer, 0, buffer.length)) > 0) {
+                md.update(buffer, 0, nRead);
+            }
+
+            inputStream.close();
+            result = getHexString(md.digest());
+
+        } catch (NoSuchAlgorithmException e) {
+            Log.d(TAG, "Unable to get MD5 digest instance when calculating apk checksum");
+        } catch (FileNotFoundException e) {
+            Log.d(TAG, "Unable to find apk file when calculating apk checksum");
+        } catch (IOException e) {
+            Log.d(TAG, "Unable to read apk file when calculating apk checksum");
+        } catch (Exception e) {
+            Log.d(TAG, "Found error when calculating apk checksum: " + e.getMessage());
+        }
+        return result;
     }
 
     protected void promptInstall (String filePath) {
@@ -61,19 +127,11 @@ public class XrayUpdateTask extends AsyncTask<Void, Void, Void> {
     }
 
     protected Void doInBackground (Void... v) {
-        HttpURLConnection urlConnection = null;
+        HttpURLConnection urlConnection;
 
         Log.d(TAG, "Checking for new updates...");
 
         try {
-            StringPreference mobilePubKeyPref = PreferenceProvider.provide_mobile_pubkey(sharedPreferences);
-            StringPreference mobilePrivKeyPref = PreferenceProvider.provide_mobile_privkey(sharedPreferences);
-            StringPreference sharedSecretPref = PreferenceProvider.provide_shared_secret(sharedPreferences);
-
-            Log.d(TAG, crypto.readPublicKey(mobilePubKeyPref.get()).toString());
-            Log.d(TAG, crypto.readPrivateKey(mobilePrivKeyPref.get()).toString());
-            Log.d(TAG, sharedSecretPref.get());
-
             // issue a GET request to determine the latest available apk version
             URL url = new URL(VERSION_URL);
             urlConnection = (HttpURLConnection) url.openConnection();
@@ -81,39 +139,64 @@ public class XrayUpdateTask extends AsyncTask<Void, Void, Void> {
             urlConnection.setReadTimeout(READ_TIMEOUT);
             urlConnection.setRequestMethod("GET");
             urlConnection.setDoInput(true);
-            urlConnection.setRequestProperty("Mobile-Pub-Key", mobilePubKeyPref.get());
             urlConnection.connect();
 
-            // read the results into a string
-            InputStream inputStream = new BufferedInputStream(urlConnection.getInputStream());
             int responseCode = urlConnection.getResponseCode();
             int latestVersion = -1;
             String fileName = null;
+            String md5Hash = null;
 
-            if (responseCode == HttpURLConnection.HTTP_OK) {
-                // read version and filename from JSON response
-                JsonReader reader = new JsonReader(new InputStreamReader(inputStream));
-                reader.beginObject();
-                while (reader.hasNext()) {
-                    String key = reader.nextName();
-                    if (key.equals("apkVersion")) {
-                        latestVersion = Integer.parseInt(reader.nextString());
-                    } else if (key.equals("apkName")) {
-                        fileName = reader.nextString();
-                    } else {
-                        reader.skipValue();
-                    }
-                }
-                reader.endObject();
-            } else {
+            // read the results into a byte array stream
+            InputStream inputStream = new BufferedInputStream(urlConnection.getInputStream());
+            ByteArrayOutputStream byteStream = new ByteArrayOutputStream();
+
+            if (responseCode != HttpURLConnection.HTTP_OK) {
                 Log.d(TAG, "Error fetching app version, HTTP request returned: " + responseCode);
+            }
+            else if (!writeToOutputStream(inputStream, byteStream)) {
+                Log.d(TAG, "Error fetching app version, invalid input stream");
+            }
+            else {
+                // request looks okay, let's verify response signature
+                Signature ecdsaSignature = Signature.getInstance(ECDSA_ALGORITHM, ECDSA_PROVIDER);
+                PublicKey extPubKey = crypto.readPublicKey(SERVER_PUB_KEY);
+                ecdsaSignature.initVerify(extPubKey);
+                ecdsaSignature.update(byteStream.toByteArray());
+
+                String signature = urlConnection.getHeaderField("Xray-Signature");
+                byte[] signature_bytes = Base64.decode(signature, Base64.DEFAULT);
+
+                if (!ecdsaSignature.verify(signature_bytes)) {
+                    Log.d(TAG, "Invalid signature");
+                }
+                else {
+                    Log.d(TAG, "Signature valid. Reading JSON response...");
+
+                    // signature is valid, so read version and filename from JSON response
+                    inputStream = new ByteArrayInputStream(byteStream.toByteArray());
+                    JsonReader reader = new JsonReader(new InputStreamReader(inputStream));
+                    reader.beginObject();
+                    while (reader.hasNext()) {
+                        String key = reader.nextName();
+                        if (key.equals("apkVersion")) {
+                            latestVersion = Integer.parseInt(reader.nextString());
+                        } else if (key.equals("apkName")) {
+                            fileName = reader.nextString();
+                        } else if (key.equals("md5")) {
+                            md5Hash = reader.nextString();
+                        } else {
+                            reader.skipValue();
+                        }
+                    }
+                    reader.endObject();
+                }
             }
 
             // close the GET connection
             inputStream.close();
             urlConnection.disconnect();
 
-            if (latestVersion < 0 || fileName == null) {
+            if (latestVersion < 0 || fileName == null || md5Hash == null) {
                 Log.d(TAG, "Error fetching app version, JSON response missing fields");
                 return null;
             }
@@ -153,23 +236,27 @@ public class XrayUpdateTask extends AsyncTask<Void, Void, Void> {
                 }
                 FileOutputStream outputStream = new FileOutputStream(outputFile);
                 inputStream = urlConnection.getInputStream();
-
-                byte[] buffer = new byte[4096];
-                int nRead;
-                while ((nRead = inputStream.read(buffer, 0, buffer.length)) > 0) {
-                    outputStream.write(buffer, 0, nRead);
-                }
+                boolean writeSuccess = writeToOutputStream(inputStream, outputStream);
 
                 inputStream.close();
                 outputStream.close();
 
-                String fullPath = outputFile.getAbsolutePath();
+                if (writeSuccess) {
+                    String fullPath = outputFile.getAbsolutePath();
 
-                // will throw an exception if apk file is corrupted
-                new JarFile(fullPath);
+                    // verify md5 hash of apk
+                    String calcChecksum = getFileChecksum(fullPath);
 
-                // display installation prompt
-                promptInstall(fullPath);
+                    if (md5Hash.equals(calcChecksum)) {
+                        Log.d(TAG, "MD5 checksum of apk file valid. Prompting install...");
+                        promptInstall(fullPath);
+                    } else {
+                        Log.d(TAG, "MD5 checksum of apk file invalid, deleting apk file");
+                        outputFile.delete();
+                    }
+                } else {
+                    Log.d(TAG, "Unable to write apk when trying to update, apk likely corrupted");
+                }
             } else {
                 Log.d(TAG, "Already up to date");
             }
@@ -178,9 +265,9 @@ public class XrayUpdateTask extends AsyncTask<Void, Void, Void> {
         } catch (SocketTimeoutException e) {
             Log.d(TAG, "Socket timed out when trying to update: " + e.toString());
         } catch (IOException e) {
-            Log.d(TAG, "Update failed with error: " + e.toString());
+            Log.d(TAG, "Found IO exception when trying to update: " + e.toString());
         } catch (Exception e) {
-            Log.d(TAG, "Apk file is corrupted, or unknown error: " + e.toString());
+            Log.d(TAG, "Received error when trying to update: " + e.toString());
         } finally {
             Log.d(TAG, "Exiting updater");
         }
