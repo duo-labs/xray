@@ -2,18 +2,13 @@ package com.duosecurity.x_ray;
 
 import android.content.Context;
 import android.content.Intent;
-import android.content.SharedPreferences;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Environment;
-import android.util.Base64;
 import android.util.JsonReader;
 import android.util.Log;
 
 import com.duosecurity.duokit.crypto.Crypto;
-import com.duosecurity.x_ray.preferences.StringPreference;
-
-import org.json.JSONException;
 
 import java.io.BufferedInputStream;
 import java.io.ByteArrayInputStream;
@@ -30,18 +25,14 @@ import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.SocketTimeoutException;
 import java.net.URL;
-import java.security.DigestInputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.Signature;
-import java.util.Scanner;
-import java.util.jar.JarFile;
 
 public class XrayUpdateTask extends AsyncTask<Void, Void, Void> {
 
-    private final static String TAG = "XrayUpdateTask";
+    private final static String TAG = XrayUpdateTask.class.getSimpleName();
 
     private final static String ECDSA_ALGORITHM = "SHA256withECDSA";
     private final static String ECDSA_PROVIDER = "SC"; // spongycastle
@@ -82,14 +73,6 @@ public class XrayUpdateTask extends AsyncTask<Void, Void, Void> {
         return true;
     }
 
-    private String getHexString (byte[] b) throws Exception {
-        String result = "";
-        for (int i = 0; i < b.length; i++) {
-            result += Integer.toString((b[i] & 0xff) + 0x100, 16).substring(1);
-        }
-        return result;
-    }
-
     private String getFileChecksum (String fullPath) {
         String result = null;
 
@@ -105,7 +88,7 @@ public class XrayUpdateTask extends AsyncTask<Void, Void, Void> {
             }
 
             inputStream.close();
-            result = getHexString(md.digest());
+            result = crypto.hex(md.digest());
 
         } catch (NoSuchAlgorithmException e) {
             Log.d(TAG, "Unable to get MD5 digest instance when calculating apk checksum");
@@ -164,7 +147,7 @@ public class XrayUpdateTask extends AsyncTask<Void, Void, Void> {
                 ecdsaSignature.update(byteStream.toByteArray());
 
                 String signature = urlConnection.getHeaderField("Xray-Signature");
-                byte[] signature_bytes = Base64.decode(signature, Base64.DEFAULT);
+                byte[] signature_bytes = crypto.base64Decode(signature);
 
                 if (!ecdsaSignature.verify(signature_bytes)) {
                     Log.d(TAG, "Invalid signature");

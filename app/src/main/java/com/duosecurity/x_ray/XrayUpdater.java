@@ -3,7 +3,6 @@ package com.duosecurity.x_ray;
 import android.Manifest;
 import android.app.Activity;
 import android.content.Context;
-//import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
@@ -13,9 +12,7 @@ public class XrayUpdater {
     private Activity activity = null;
     private Context context = null;
 
-    private final static String TAG = "XrayUpdater";
-
-//    private final static String SHARED_PREFERENCES_NAME = "Xray";
+    private final static String TAG = XrayUpdater.class.getSimpleName();
 
     private static final int REQUEST_EXTERNAL_STORAGE = 1;
     private static String[] PERMISSIONS_STORAGE = {
@@ -23,34 +20,15 @@ public class XrayUpdater {
             Manifest.permission.WRITE_EXTERNAL_STORAGE
     };
 
-//    private SharedPreferences sharedPreferences = null;
-
     public XrayUpdater(Activity act) {
         activity = act;
         context = activity.getApplicationContext();
-//        sharedPreferences = activity.getSharedPreferences(SHARED_PREFERENCES_NAME, activity.MODE_PRIVATE);
     }
 
     public void startUpdater() {
         if (requestPermissions()) {
             startUpdateTask();
         }
-//        // first generate a keypair for verifying authenticity of received manifest/apk file
-//        XrayKeygenTask keygenTask = new XrayKeygenTask(sharedPreferences, new XrayKeygenTask.TaskListener() {
-//            @Override
-//            public void onFinished(Boolean result) {
-//                if (result) {
-//                    // if keygen succeeded and we have necessary permissions, start update immediately
-//                    // otherwise, we'll start the update in the onRequestPermissionsResult callback
-//                    if (requestPermissions()) {
-//                        startUpdateTask();
-//                    }
-//                } else {
-//                    Log.d(TAG, "Exiting updater");
-//                }
-//            }
-//        });
-//        keygenTask.execute();
     }
 
     private void startUpdateTask() {
