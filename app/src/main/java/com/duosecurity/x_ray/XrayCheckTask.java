@@ -54,7 +54,7 @@ public class XrayCheckTask extends AsyncTask<Void, Void, Boolean> {
             int responseCode = urlConnection.getResponseCode();
             int apkVersion = -1;
             String apkName = null;
-            String checksum = null;
+            String apkChecksum = null;
 
             // read the results into a byte array stream
             InputStream inputStream = new BufferedInputStream(urlConnection.getInputStream());
@@ -94,8 +94,8 @@ public class XrayCheckTask extends AsyncTask<Void, Void, Boolean> {
                             apkVersion = Integer.parseInt(reader.nextString());
                         } else if (key.equals("apkName")) {
                             apkName = reader.nextString();
-                        } else if (key.equals("md5")) {
-                            checksum = reader.nextString();
+                        } else if (key.equals("apkChecksum")) {
+                            apkChecksum = reader.nextString();
                         } else {
                             reader.skipValue();
                         }
@@ -108,7 +108,7 @@ public class XrayCheckTask extends AsyncTask<Void, Void, Boolean> {
             inputStream.close();
             urlConnection.disconnect();
 
-            if (apkVersion < 0 || apkName == null || checksum == null) {
+            if (apkVersion < 0 || apkName == null || apkChecksum == null) {
                 Log.d(TAG, "Error fetching app version, JSON response missing fields");
             }
             else if (apkVersion == BuildConfig.VERSION_CODE) {
@@ -116,7 +116,7 @@ public class XrayCheckTask extends AsyncTask<Void, Void, Boolean> {
             }
             else { // out of date
                 XrayUpdater.setSharedPreference("apkName", apkName);
-                XrayUpdater.setSharedPreference("checksum", checksum);
+                XrayUpdater.setSharedPreference("apkChecksum", apkChecksum);
                 return true;
             }
         } catch (MalformedURLException e) {

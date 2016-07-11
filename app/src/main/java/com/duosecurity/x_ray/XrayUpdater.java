@@ -28,14 +28,15 @@ public class XrayUpdater {
 
     public static final int REQUEST_EXTERNAL_STORAGE = 1;
 
+    public static final String CHECKSUM_ALGORITHM = "SHA-256";
     public static final String ECDSA_ALGORITHM = "SHA256withECDSA";
     public static final String ECDSA_PROVIDER = "SC"; // spongycastle
 
     public static final int CONNECTION_TIMEOUT = 15000;
     public static final int READ_TIMEOUT = 15000;
 
-    public final static String DOWNLOAD_URL = "http://labs.duo.com/xray/dl";
-    public final static String VERSION_URL = "http://labs.duo.com/xray/version";
+    public final static String DOWNLOAD_URL = "https://labs.duo.com/xray/dl";
+    public final static String VERSION_URL = "https://labs.duo.com/xray/version";
 
     public final static String DOWNLOAD_DIR = "/Download/";
     public final static String FILE_TYPE = "application/vnd.android.package-archive";

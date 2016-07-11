@@ -38,7 +38,7 @@ public class XrayUpdateTask extends AsyncTask<Void, Void, Void> {
         String result = null;
 
         try {
-            MessageDigest md = MessageDigest.getInstance("MD5");
+            MessageDigest md = MessageDigest.getInstance(XrayUpdater.CHECKSUM_ALGORITHM);
             InputStream inputStream = new FileInputStream(fullPath);
 
             byte[] buffer = new byte[4096];
@@ -52,7 +52,7 @@ public class XrayUpdateTask extends AsyncTask<Void, Void, Void> {
             result = crypto.hex(md.digest());
 
         } catch (NoSuchAlgorithmException e) {
-            Log.d(TAG, "Unable to get MD5 digest instance when calculating apk checksum");
+            Log.d(TAG, "Unable to get digest instance when calculating apk checksum");
         } catch (FileNotFoundException e) {
             Log.d(TAG, "Unable to find apk file when calculating apk checksum");
         } catch (IOException e) {
@@ -78,9 +78,9 @@ public class XrayUpdateTask extends AsyncTask<Void, Void, Void> {
         try {
             // make sure necessary info has been set
             String apkName = XrayUpdater.getSharedPreference("apkName");
-            String actualChecksum = XrayUpdater.getSharedPreference("checksum");
+            String actualChecksum = XrayUpdater.getSharedPreference("apkChecksum");
             if ("".equals(apkName) || "".equals(actualChecksum)) {
-                throw new Exception("Missing apkName or checksum");
+                throw new Exception("Missing apkName or apkChecksum");
             }
 
             // issue GET request to download new apk
@@ -126,10 +126,10 @@ public class XrayUpdateTask extends AsyncTask<Void, Void, Void> {
                 String calculatedChecksum = getFileChecksum(fullPath);
 
                 if (actualChecksum.equals(calculatedChecksum)) {
-                    Log.d(TAG, "MD5 checksum of apk file valid. Prompting install...");
+                    Log.d(TAG, "Checksum of apk file valid. Prompting install...");
                     promptInstall(fullPath);
                 } else {
-                    Log.d(TAG, "MD5 checksum of apk file invalid, deleting apk file");
+                    Log.d(TAG, "Checksum of apk file invalid, deleting apk file");
                     outputFile.delete();
                 }
             } else {
