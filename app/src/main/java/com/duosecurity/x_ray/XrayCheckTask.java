@@ -1,10 +1,13 @@
 package com.duosecurity.x_ray;
 
+import android.content.Context;
 import android.os.AsyncTask;
 import android.util.JsonReader;
 import android.util.Log;
 
 import com.duosecurity.duokit.crypto.Crypto;
+
+import org.thoughtcrime.ssl.pinning.util.PinningHelper;
 
 import java.io.BufferedInputStream;
 import java.io.ByteArrayInputStream;
@@ -19,10 +22,13 @@ import java.net.URL;
 import java.security.PublicKey;
 import java.security.Signature;
 
+import javax.net.ssl.HttpsURLConnection;
+
 public class XrayCheckTask extends AsyncTask<Void, Void, Boolean> {
 
     private final static String TAG = XrayCheckTask.class.getSimpleName();
 
+    private Context context = null;
     private Crypto crypto = null;
     private TaskListener callback = null;
 
@@ -30,21 +36,24 @@ public class XrayCheckTask extends AsyncTask<Void, Void, Boolean> {
         void onFinished(Boolean haveNewUpdate);
     }
 
-    public XrayCheckTask (TaskListener taskListener) {
+    public XrayCheckTask (Context ctx, TaskListener taskListener) {
+        context = ctx;
         crypto = Crypto.getInstance();
         callback = taskListener;
     }
 
     @Override
     protected Boolean doInBackground (Void... v) {
-        HttpURLConnection urlConnection;
+        HttpsURLConnection urlConnection;
 
         Log.d(TAG, "Attempting to fetch manifest...");
 
         try {
             // issue a GET request to determine the latest available apk version
             URL url = new URL(XrayUpdater.VERSION_URL);
-            urlConnection = (HttpURLConnection) url.openConnection();
+            urlConnection = PinningHelper.getPinnedHttpsURLConnection(
+                context, XrayUpdater.CERT_PINS, url
+            );
             urlConnection.setConnectTimeout(XrayUpdater.CONNECTION_TIMEOUT);
             urlConnection.setReadTimeout(XrayUpdater.READ_TIMEOUT);
             urlConnection.setRequestMethod("GET");

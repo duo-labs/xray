@@ -45,6 +45,10 @@ public class XrayUpdater {
         "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEy5bOzkZ36VV+kjSYso0HTCZwHWMT\n" +
         "29lQWpJYAiudtZ65mdcBCgmsB/jAwLIJl8BricbLhGU9FA/Wxha5b3ee7A==";
 
+    public static final String[] CERT_PINS = {
+        "137cbbcfcebe0f48307ee512df1a66da10dcebad" // C=US, ST=Michigan, L=Ann Arbor, O=Duo Security, Inc., CN=labs.duo.com
+    };
+
     private static final String SHARED_PREFERENCES = "X-Ray";
     private static SharedPreferences sharedPreferences = null;
 
@@ -70,7 +74,7 @@ public class XrayUpdater {
     public void checkForUpdates() {
         Log.d(TAG, "Checking for updates...");
 
-        XrayCheckTask checkTask = new XrayCheckTask(new XrayCheckTask.TaskListener() {
+        XrayCheckTask checkTask = new XrayCheckTask(context, new XrayCheckTask.TaskListener() {
             @Override
             public void onFinished(Boolean haveNewUpdate) {
                 if (haveNewUpdate) {

@@ -53,6 +53,7 @@ dependencies {
     compile 'com.madgag:sc-light-jdk15on:1.47.0.3'
     compile 'com.madgag:scpkix-jdk15on:1.47.0.3'
     compile 'com.madgag:scprov-jdk15on:1.47.0.3'
+    compile 'org.thoughtcrime.ssl.pinning:AndroidPinning:1.0.0'
 }
 
 Properties properties = new Properties()
