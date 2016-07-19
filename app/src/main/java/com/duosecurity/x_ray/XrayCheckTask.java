@@ -23,8 +23,9 @@ import java.security.PublicKey;
 import java.security.Signature;
 
 import javax.net.ssl.HttpsURLConnection;
+import javax.net.ssl.SSLHandshakeException;
 
-public class XrayCheckTask extends AsyncTask<Void, Void, Boolean> {
+public class XrayCheckTask extends AsyncTask<Void, Void, XrayUpdater.CheckResult> {
 
     private final static String TAG = XrayCheckTask.class.getSimpleName();
 
@@ -33,7 +34,7 @@ public class XrayCheckTask extends AsyncTask<Void, Void, Boolean> {
     private TaskListener callback = null;
 
     public interface TaskListener {
-        void onFinished(Boolean haveNewUpdate);
+        void onFinished(XrayUpdater.CheckResult checkResult);
     }
 
     public XrayCheckTask (Context ctx, TaskListener taskListener) {
@@ -43,8 +44,10 @@ public class XrayCheckTask extends AsyncTask<Void, Void, Boolean> {
     }
 
     @Override
-    protected Boolean doInBackground (Void... v) {
-        HttpsURLConnection urlConnection;
+    protected XrayUpdater.CheckResult doInBackground (Void... v) {
+        HttpsURLConnection urlConnection = null;
+        InputStream inputStream = null;
+        XrayUpdater.CheckResult result = XrayUpdater.CheckResult.UP_TO_DATE;
 
         Log.d(TAG, "Attempting to fetch manifest...");
 
@@ -66,7 +69,7 @@ public class XrayCheckTask extends AsyncTask<Void, Void, Boolean> {
             String apkChecksum = null;
 
             // read the results into a byte array stream
-            InputStream inputStream = new BufferedInputStream(urlConnection.getInputStream());
+            inputStream = new BufferedInputStream(urlConnection.getInputStream());
             ByteArrayOutputStream byteStream = new ByteArrayOutputStream();
 
             if (responseCode != HttpURLConnection.HTTP_OK) {
@@ -113,10 +116,6 @@ public class XrayCheckTask extends AsyncTask<Void, Void, Boolean> {
                 }
             }
 
-            // close the GET connection
-            inputStream.close();
-            urlConnection.disconnect();
-
             if (apkVersion < 0 || apkName == null || apkChecksum == null) {
                 Log.d(TAG, "Error fetching app version, JSON response missing fields");
             }
@@ -126,28 +125,45 @@ public class XrayCheckTask extends AsyncTask<Void, Void, Boolean> {
             else { // out of date
                 XrayUpdater.setSharedPreference("apkName", apkName);
                 XrayUpdater.setSharedPreference("apkChecksum", apkChecksum);
-                return true;
+                result = XrayUpdater.CheckResult.OUT_OF_DATE;
             }
         } catch (MalformedURLException e) {
             Log.d(TAG, "Found malformed URL when trying to update");
         } catch (SocketTimeoutException e) {
             Log.d(TAG, "Socket timed out when trying to update: " + e.toString());
+        } catch (SSLHandshakeException e) {
+            Log.d(TAG, "Failed SSL Handshake when trying to update: " + e.toString());
+            result = XrayUpdater.CheckResult.SSL_ERROR;
         } catch (IOException e) {
             Log.d(TAG, "Found IO exception when trying to update: " + e.toString());
         } catch (Exception e) {
             Log.d(TAG, "Received error when trying to update: " + e.toString());
         } finally {
+            Log.d(TAG, "Cleaning up check task...");
+
+            // close the GET connection
+            if (inputStream != null) {
+                try {
+                    inputStream.close();
+                } catch (IOException e) {
+                    Log.d(TAG, "Found IO exception when trying to close inputstream: " + e.toString());
+                }
+            }
+            if (urlConnection != null) {
+                urlConnection.disconnect();
+            }
+
             Log.d(TAG, "Exiting check task");
         }
-        return false;
+        return result;
     }
 
     @Override
-    protected void onPostExecute(Boolean haveNewUpdate) {
-        super.onPostExecute(haveNewUpdate);
+    protected void onPostExecute(XrayUpdater.CheckResult checkResult) {
+        super.onPostExecute(checkResult);
 
         if (callback != null) {
-            callback.onFinished(haveNewUpdate);
+            callback.onFinished(checkResult);
         }
     }
 }

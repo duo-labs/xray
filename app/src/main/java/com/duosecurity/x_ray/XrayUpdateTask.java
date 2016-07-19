@@ -15,12 +15,13 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.SocketTimeoutException;
 import java.net.URL;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+
+import javax.net.ssl.HttpsURLConnection;
 
 public class XrayUpdateTask extends AsyncTask<Void, Void, Void> {
 
@@ -36,10 +37,11 @@ public class XrayUpdateTask extends AsyncTask<Void, Void, Void> {
 
     private String getFileChecksum (String fullPath) {
         String result = null;
+        InputStream inputStream = null;
 
         try {
             MessageDigest md = MessageDigest.getInstance(XrayUpdater.CHECKSUM_ALGORITHM);
-            InputStream inputStream = new FileInputStream(fullPath);
+            inputStream = new FileInputStream(fullPath);
 
             byte[] buffer = new byte[4096];
             int nRead;
@@ -48,7 +50,6 @@ public class XrayUpdateTask extends AsyncTask<Void, Void, Void> {
                 md.update(buffer, 0, nRead);
             }
 
-            inputStream.close();
             result = crypto.hex(md.digest());
 
         } catch (NoSuchAlgorithmException e) {
@@ -58,7 +59,16 @@ public class XrayUpdateTask extends AsyncTask<Void, Void, Void> {
         } catch (IOException e) {
             Log.d(TAG, "Unable to read apk file when calculating apk checksum");
         } catch (Exception e) {
-            Log.d(TAG, "Found error when calculating apk checksum: " + e.getMessage());
+            Log.d(TAG, "Found error when calculating apk checksum: " + e.toString());
+        } finally {
+            Log.d(TAG, "Cleaning up after calculating apk checksum...");
+            if (inputStream != null) {
+                try {
+                    inputStream.close();
+                } catch (IOException e) {
+                    Log.d(TAG, "Found IO exception when trying to close inputstream: " + e.toString());
+                }
+            }
         }
         return result;
     }
@@ -71,7 +81,8 @@ public class XrayUpdateTask extends AsyncTask<Void, Void, Void> {
     }
 
     protected Void doInBackground (Void... v) {
-        HttpURLConnection urlConnection;
+        HttpsURLConnection urlConnection = null;
+        InputStream inputStream = null;
 
         Log.d(TAG, "Attempting to fetch apk update...");
 
@@ -85,7 +96,7 @@ public class XrayUpdateTask extends AsyncTask<Void, Void, Void> {
 
             // issue GET request to download new apk
             URL url = new URL(XrayUpdater.DOWNLOAD_URL);
-            urlConnection = (HttpURLConnection) url.openConnection();
+            urlConnection = (HttpsURLConnection) url.openConnection();
             urlConnection.setConnectTimeout(XrayUpdater.CONNECTION_TIMEOUT);
             urlConnection.setReadTimeout(XrayUpdater.READ_TIMEOUT);
             urlConnection.setRequestMethod("GET");
@@ -95,7 +106,7 @@ public class XrayUpdateTask extends AsyncTask<Void, Void, Void> {
             int responseCode = urlConnection.getResponseCode();
             String responseType = urlConnection.getContentType();
 
-            if (responseCode != HttpURLConnection.HTTP_OK ||
+            if (responseCode != HttpsURLConnection.HTTP_OK ||
                 !responseType.equalsIgnoreCase(XrayUpdater.FILE_TYPE)) {
                 throw new Exception("Error fetching apk update");
             }
@@ -113,16 +124,13 @@ public class XrayUpdateTask extends AsyncTask<Void, Void, Void> {
                 outputFile.createNewFile();
             }
             FileOutputStream outputStream = new FileOutputStream(outputFile);
-            InputStream inputStream = urlConnection.getInputStream();
+            inputStream = urlConnection.getInputStream();
             boolean writeSuccess = XrayUpdater.writeToOutputStream(inputStream, outputStream);
-
-            inputStream.close();
-            outputStream.close();
 
             if (writeSuccess) {
                 String fullPath = outputFile.getAbsolutePath();
 
-                // verify md5 hash of apk
+                // verify checksum of apk
                 String calculatedChecksum = getFileChecksum(fullPath);
 
                 if (actualChecksum.equals(calculatedChecksum)) {
@@ -144,6 +152,20 @@ public class XrayUpdateTask extends AsyncTask<Void, Void, Void> {
         } catch (Exception e) {
             Log.d(TAG, "Received error when trying to update: " + e.toString());
         } finally {
+            Log.d(TAG, "Cleaning up update task...");
+
+            // close the GET connection
+            if (inputStream != null) {
+                try {
+                    inputStream.close();
+                } catch (IOException e) {
+                    Log.d(TAG, "Found IO exception when trying to close inputstream: " + e.toString());
+                }
+            }
+            if (urlConnection != null) {
+                urlConnection.disconnect();
+            }
+
             Log.d(TAG, "Exiting update task");
         }
         return null;

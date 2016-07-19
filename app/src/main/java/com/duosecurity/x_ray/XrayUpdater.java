@@ -5,8 +5,10 @@ import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.Context;
 import android.content.DialogInterface;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
+import android.net.Uri;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.util.Log;
@@ -22,8 +24,8 @@ public class XrayUpdater {
     private final static String TAG = XrayUpdater.class.getSimpleName();
 
     private static String[] PERMISSIONS_STORAGE = {
-            Manifest.permission.READ_EXTERNAL_STORAGE,
-            Manifest.permission.WRITE_EXTERNAL_STORAGE
+        Manifest.permission.READ_EXTERNAL_STORAGE,
+        Manifest.permission.WRITE_EXTERNAL_STORAGE
     };
 
     public static final int REQUEST_EXTERNAL_STORAGE = 1;
@@ -35,8 +37,9 @@ public class XrayUpdater {
     public static final int CONNECTION_TIMEOUT = 15000;
     public static final int READ_TIMEOUT = 15000;
 
-    public final static String DOWNLOAD_URL = "https://labs.duo.com/xray/dl";
-    public final static String VERSION_URL = "https://labs.duo.com/xray/version";
+    public static final String BASE_URL = "https://labs.duo.com/xray";
+    public final static String DOWNLOAD_URL = BASE_URL + "/dl";
+    public final static String VERSION_URL = BASE_URL + "/version";
 
     public final static String DOWNLOAD_DIR = "/Download/";
     public final static String FILE_TYPE = "application/vnd.android.package-archive";
@@ -46,8 +49,12 @@ public class XrayUpdater {
         "29lQWpJYAiudtZ65mdcBCgmsB/jAwLIJl8BricbLhGU9FA/Wxha5b3ee7A==";
 
     public static final String[] CERT_PINS = {
-        "137cbbcfcebe0f48307ee512df1a66da10dcebad" // C=US, ST=Michigan, L=Ann Arbor, O=Duo Security, Inc., CN=labs.duo.com
+        "de52af8cdb1f9ab9fe5a67c386faf689587fc91b" // C=US, O=DigiCert Inc, OU=www.digicert.com, CN=DigiCert SHA2 High Assurance Server CA
     };
+
+    public enum CheckResult {
+        UP_TO_DATE, OUT_OF_DATE, SSL_ERROR
+    }
 
     private static final String SHARED_PREFERENCES = "X-Ray";
     private static SharedPreferences sharedPreferences = null;
@@ -74,10 +81,36 @@ public class XrayUpdater {
     public void checkForUpdates() {
         Log.d(TAG, "Checking for updates...");
 
-        XrayCheckTask checkTask = new XrayCheckTask(context, new XrayCheckTask.TaskListener() {
+        XrayCheckTask checkTask = new XrayCheckTask(activity, new XrayCheckTask.TaskListener() {
             @Override
-            public void onFinished(Boolean haveNewUpdate) {
-                if (haveNewUpdate) {
+            public void onFinished(CheckResult checkResult) {
+                if (checkResult == CheckResult.SSL_ERROR) {
+                    new AlertDialog.Builder(activity)
+                        .setTitle("Unable to update")
+                        .setCancelable(false)
+                        .setMessage(
+                            "Something is interfering with your secure connection to the update server. " +
+                            "Try downloading a new version of X-Ray from https://xray.io. " +
+                            "If the problem persists, try connecting to a different network."
+                        )
+                        .setPositiveButton("Download now", new DialogInterface.OnClickListener() {
+                            @Override
+                            public void onClick(DialogInterface dialogInterface, int i) {
+                                Uri downloadUri = Uri.parse(BASE_URL);
+                                Intent browserIntent = new Intent(Intent.ACTION_VIEW, downloadUri);
+                                browserIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                                activity.startActivity(browserIntent);
+                            }
+                        })
+                        .setNegativeButton("Later", new DialogInterface.OnClickListener() {
+                            @Override
+                            public void onClick(DialogInterface dialogInterface, int i) {
+                                dialogInterface.dismiss();
+                            }
+                        })
+                        .show();
+                }
+                else if (checkResult == CheckResult.OUT_OF_DATE) {
                     Log.d(TAG, "Update available");
                     int permission = ContextCompat.checkSelfPermission(
                         context, Manifest.permission.WRITE_EXTERNAL_STORAGE
@@ -91,7 +124,7 @@ public class XrayUpdater {
                             .setTitle("Update Available")
                             .setMessage(
                                 "A new version of X-Ray is available. " +
-                                "Would you like to download it now? " +
+                                "Would you like to download it now?\n" +
                                 "(Requires permissions to write to storage)"
                             )
                             .setPositiveButton(android.R.string.yes, new DialogInterface.OnClickListener() {
