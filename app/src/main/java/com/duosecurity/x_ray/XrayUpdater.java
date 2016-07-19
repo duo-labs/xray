@@ -55,6 +55,9 @@ public class XrayUpdater {
     public enum CheckResult {
         UP_TO_DATE, OUT_OF_DATE, SSL_ERROR
     }
+    public enum UpdateResult {
+        DOWNLOAD_SUCCESS, DOWNLOAD_ERROR, SSL_ERROR
+    }
 
     private static final String SHARED_PREFERENCES = "X-Ray";
     private static SharedPreferences sharedPreferences = null;
@@ -65,11 +68,6 @@ public class XrayUpdater {
         sharedPreferences = activity.getSharedPreferences(SHARED_PREFERENCES, context.MODE_PRIVATE);
     }
 
-    private void startUpdateTask() {
-        XrayUpdateTask updateTask = new XrayUpdateTask(context);
-        updateTask.execute();
-    }
-
     public static void setSharedPreference(String preference, String value) {
         sharedPreferences.edit().putString(preference, value).commit();
     }
@@ -78,78 +76,95 @@ public class XrayUpdater {
         return sharedPreferences.getString(preference, "");
     }
 
-    public void checkForUpdates() {
+    private void displayUpdateErrorPrompt() {
+        new AlertDialog.Builder(activity)
+            .setTitle("Unable to update")
+            .setCancelable(false)
+            .setMessage(
+                "Something is interfering with your secure connection to the update server.\n\n" +
+                "Try downloading a new version of X-Ray from https://xray.io.\n\n" +
+                "If the problem persists, try connecting to a different network."
+            )
+            .setPositiveButton("Download now", new DialogInterface.OnClickListener() {
+                @Override
+                public void onClick(DialogInterface dialogInterface, int i) {
+                    Uri downloadUri = Uri.parse(DOWNLOAD_URL);
+                    Intent browserIntent = new Intent(Intent.ACTION_VIEW, downloadUri);
+                    browserIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                    activity.startActivity(browserIntent);
+                }
+            })
+            .setNegativeButton("Later", new DialogInterface.OnClickListener() {
+                @Override
+                public void onClick(DialogInterface dialogInterface, int i) {
+                    dialogInterface.dismiss();
+                }
+            })
+            .show();
+    }
+
+    private void startUpdateTask() {
+        XrayUpdateTask updateTask = new XrayUpdateTask(context, new XrayUpdateTask.TaskListener() {
+            @Override
+            public void onFinished(UpdateResult updateResult) {
+                if (updateResult != UpdateResult.DOWNLOAD_SUCCESS) {
+                    displayUpdateErrorPrompt();
+                }
+            }
+        });
+        updateTask.execute();
+    }
+
+    public void startCheckTask() {
         Log.d(TAG, "Checking for updates...");
 
-        XrayCheckTask checkTask = new XrayCheckTask(activity, new XrayCheckTask.TaskListener() {
+        XrayCheckTask checkTask = new XrayCheckTask(context, new XrayCheckTask.TaskListener() {
             @Override
             public void onFinished(CheckResult checkResult) {
                 if (checkResult == CheckResult.SSL_ERROR) {
-                    new AlertDialog.Builder(activity)
-                        .setTitle("Unable to update")
-                        .setCancelable(false)
-                        .setMessage(
-                            "Something is interfering with your secure connection to the update server. " +
-                            "Try downloading a new version of X-Ray from https://xray.io. " +
-                            "If the problem persists, try connecting to a different network."
-                        )
-                        .setPositiveButton("Download now", new DialogInterface.OnClickListener() {
-                            @Override
-                            public void onClick(DialogInterface dialogInterface, int i) {
-                                Uri downloadUri = Uri.parse(BASE_URL);
-                                Intent browserIntent = new Intent(Intent.ACTION_VIEW, downloadUri);
-                                browserIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                                activity.startActivity(browserIntent);
-                            }
-                        })
-                        .setNegativeButton("Later", new DialogInterface.OnClickListener() {
-                            @Override
-                            public void onClick(DialogInterface dialogInterface, int i) {
-                                dialogInterface.dismiss();
-                            }
-                        })
-                        .show();
+                    displayUpdateErrorPrompt();
                 }
                 else if (checkResult == CheckResult.OUT_OF_DATE) {
                     Log.d(TAG, "Update available");
-                    int permission = ContextCompat.checkSelfPermission(
-                        context, Manifest.permission.WRITE_EXTERNAL_STORAGE
-                    );
 
-                    // don't have permissions, so need to request
-                    if (permission != PackageManager.PERMISSION_GRANTED) {
-                        Log.d(TAG, "Requesting permissions...");
+                    new AlertDialog.Builder(activity)
+                        .setTitle("Update Available")
+                        .setMessage(
+                            "A new version of X-Ray is available. " +
+                            "Would you like to download it now?\n" +
+                            "(Requires permissions to write to storage)"
+                        )
+                        .setPositiveButton(android.R.string.yes, new DialogInterface.OnClickListener() {
+                            @Override
+                            public void onClick(DialogInterface dialogInterface, int i) {
+                                int permission = ContextCompat.checkSelfPermission(
+                                    context, Manifest.permission.WRITE_EXTERNAL_STORAGE
+                                );
 
-                        new AlertDialog.Builder(activity)
-                            .setTitle("Update Available")
-                            .setMessage(
-                                "A new version of X-Ray is available. " +
-                                "Would you like to download it now?\n" +
-                                "(Requires permissions to write to storage)"
-                            )
-                            .setPositiveButton(android.R.string.yes, new DialogInterface.OnClickListener() {
-                                @Override
-                                public void onClick(DialogInterface dialogInterface, int i) {
+                                // don't have permissions, so need to request
+                                if (permission != PackageManager.PERMISSION_GRANTED) {
+                                    Log.d(TAG, "Requesting permissions...");
+
                                     ActivityCompat.requestPermissions(
                                         activity,
                                         PERMISSIONS_STORAGE,
                                         REQUEST_EXTERNAL_STORAGE
                                     );
                                 }
-                            })
-                            .setNegativeButton(android.R.string.no, new DialogInterface.OnClickListener() {
-                                @Override
-                                public void onClick(DialogInterface dialogInterface, int i) {
-                                    Log.d(TAG, "Update request denied by user");
+                                // already have permissions, start update immediately
+                                else {
+                                    Log.d(TAG, "Already have permissions, skipping request procedure");
+                                    startUpdateTask();
                                 }
-                            })
-                            .show();
-                    }
-                    // already have permissions, start update immediately
-                    else {
-                        Log.d(TAG, "Already have permissions, skipping request procedure");
-                        startUpdateTask();
-                    }
+                            }
+                        })
+                        .setNegativeButton(android.R.string.no, new DialogInterface.OnClickListener() {
+                            @Override
+                            public void onClick(DialogInterface dialogInterface, int i) {
+                                Log.d(TAG, "Update request denied by user");
+                            }
+                        })
+                        .show();
                 }
             }
         });

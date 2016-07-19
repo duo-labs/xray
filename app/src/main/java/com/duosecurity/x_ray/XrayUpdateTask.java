@@ -9,6 +9,8 @@ import android.util.Log;
 
 import com.duosecurity.duokit.crypto.Crypto;
 
+import org.thoughtcrime.ssl.pinning.util.PinningHelper;
+
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -22,17 +24,24 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 
 import javax.net.ssl.HttpsURLConnection;
+import javax.net.ssl.SSLHandshakeException;
 
-public class XrayUpdateTask extends AsyncTask<Void, Void, Void> {
+public class XrayUpdateTask extends AsyncTask<Void, Void, XrayUpdater.UpdateResult> {
 
     private final static String TAG = XrayUpdateTask.class.getSimpleName();
 
     protected Context context = null;
     private Crypto crypto = null;
+    private TaskListener callback = null;
 
-    public XrayUpdateTask(Context ctx) {
+    public interface TaskListener {
+        void onFinished(XrayUpdater.UpdateResult updateResult);
+    }
+
+    public XrayUpdateTask(Context ctx, TaskListener taskListener) {
         context = ctx;
         crypto = Crypto.getInstance();
+        callback = taskListener;
     }
 
     private String getFileChecksum (String fullPath) {
@@ -80,9 +89,10 @@ public class XrayUpdateTask extends AsyncTask<Void, Void, Void> {
         context.startActivity(installIntent);
     }
 
-    protected Void doInBackground (Void... v) {
+    protected XrayUpdater.UpdateResult doInBackground (Void... v) {
         HttpsURLConnection urlConnection = null;
         InputStream inputStream = null;
+        XrayUpdater.UpdateResult result = XrayUpdater.UpdateResult.DOWNLOAD_SUCCESS;
 
         Log.d(TAG, "Attempting to fetch apk update...");
 
@@ -96,7 +106,9 @@ public class XrayUpdateTask extends AsyncTask<Void, Void, Void> {
 
             // issue GET request to download new apk
             URL url = new URL(XrayUpdater.DOWNLOAD_URL);
-            urlConnection = (HttpsURLConnection) url.openConnection();
+            urlConnection = PinningHelper.getPinnedHttpsURLConnection(
+                context, XrayUpdater.CERT_PINS, url
+            );
             urlConnection.setConnectTimeout(XrayUpdater.CONNECTION_TIMEOUT);
             urlConnection.setReadTimeout(XrayUpdater.READ_TIMEOUT);
             urlConnection.setRequestMethod("GET");
@@ -138,15 +150,20 @@ public class XrayUpdateTask extends AsyncTask<Void, Void, Void> {
                     promptInstall(fullPath);
                 } else {
                     Log.d(TAG, "Checksum of apk file invalid, deleting apk file");
+                    result = XrayUpdater.UpdateResult.DOWNLOAD_ERROR;
                     outputFile.delete();
                 }
             } else {
                 Log.d(TAG, "Unable to write apk when trying to update, apk likely corrupted");
+                result = XrayUpdater.UpdateResult.DOWNLOAD_ERROR;
             }
         } catch (MalformedURLException e) {
             Log.d(TAG, "Found malformed URL when trying to update");
         } catch (SocketTimeoutException e) {
             Log.d(TAG, "Socket timed out when trying to update: " + e.toString());
+        } catch (SSLHandshakeException e) {
+            Log.d(TAG, "Failed SSL Handshake when trying to update: " + e.toString());
+            result = XrayUpdater.UpdateResult.SSL_ERROR;
         } catch (IOException e) {
             Log.d(TAG, "Found IO exception when trying to update: " + e.toString());
         } catch (Exception e) {
@@ -168,6 +185,15 @@ public class XrayUpdateTask extends AsyncTask<Void, Void, Void> {
 
             Log.d(TAG, "Exiting update task");
         }
-        return null;
+        return result;
+    }
+
+    @Override
+    protected void onPostExecute(XrayUpdater.UpdateResult updateResult) {
+        super.onPostExecute(updateResult);
+
+        if (callback != null) {
+            callback.onFinished(updateResult);
+        }
     }
 }
