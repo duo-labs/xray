@@ -18,6 +18,7 @@ import android.support.v7.widget.RecyclerView;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
+import android.widget.TextView;
 
 import org.apache.http.HttpResponse;
 import org.apache.http.client.HttpClient;
@@ -44,6 +45,7 @@ public class MainActivity extends ActionBarActivity {
     private ArrayList<VulnerabilityTestResult> testResults;
     private RecyclerView recyclerView;
     private RecyclerAdapter recyclerAdapter;
+    private TextView aboutView;
 
     private XrayUpdater updater;
 
@@ -74,6 +76,9 @@ public class MainActivity extends ActionBarActivity {
 
         recyclerView.setLayoutManager(new LinearLayoutManager(MainActivity.this));
         recyclerView.setAdapter(recyclerAdapter);
+
+        aboutView = (TextView) findViewById(R.id.about_txt_version);
+        aboutView.setText("Version " + BuildConfig.VERSION_NAME);
 
         devInfo = DeviceInfo.getDeviceInfo();
 
