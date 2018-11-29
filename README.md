@@ -1,3 +1,19 @@
+# NOTE
+X-Ray is no longer maintained by Duo Labs. This project will be archived 12/01/18.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 # X-Ray
 X-Ray allows you to scan your Android device for security vulnerabilities that put your device at risk.
 
